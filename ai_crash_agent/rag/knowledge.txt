@@ -1,0 +1,4 @@
+Pedestrian crashes are more severe.
+Night crashes have higher fatality risk.
+High speed increases severity.
+Multi-vehicle crashes increase injury count.
