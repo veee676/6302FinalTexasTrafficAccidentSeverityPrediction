@@ -22,6 +22,8 @@ hour = st.slider("Hour of Day", 0, 23, 12)
 collision_type = st.selectbox("Collision Type", 
                               ['head_on', 'parking_related', 'sideswipe', 'single_vehicle', 'turning'])
 
+day_of_week = st.slider("Day of Week (0=Monday, 6=Sunday)", 0,6,3)
+
 explainer = shap.TreeExplainer(clf)
 
 if st.button('Predict'):
@@ -30,7 +32,8 @@ if st.button('Predict'):
         'crash_speed_limit': crash_speed_limit,
         'num_units': num_units,
         'hour': hour,
-        'collision_type': collision_type
+        'collision_type': collision_type,
+        'day_of_week': day_of_week
     }
 
     df =process_input(input_data)
