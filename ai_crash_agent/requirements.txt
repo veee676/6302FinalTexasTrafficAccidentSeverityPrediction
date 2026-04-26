@@ -6,3 +6,6 @@ xgboost
 joblib
 ollama
 requests
+streamlit
+shap
+matplotlib
