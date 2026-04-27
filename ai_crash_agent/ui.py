@@ -9,34 +9,64 @@ from utils.feature_engineering import process_input
 from rag.rag_pipeline import generate_explanation
 
 # loading models
-clf = joblib.load('models/clf_model.pkl')
-reg = joblib.load('models/regression_model.pkl')
+clf = joblib.load('models/clf_agent.pkl')
+reg = joblib.load('models/reg_agent.pkl')
+
+clf_explainer = shap.TreeExplainer(clf)
+reg_explainer = shap.TreeExplainer(reg)
+
 
 st.title("Crash Severity & Injury Prediction")
 st.header("Input Parameters")
 
-crash_speed_limit = st.slider("Speed Limit", 0, 100, 45)
-num_units = st.slider("Number of Units involved (vehicle or otherwise)", 1, 10, 2)
+# BASIC INPUTS
+crash_speed_limit = st.slider("Speed Limit", 0, 100, 35)
+num_units = st.slider("Number of Vehicles", 1, 10, 1)
 hour = st.slider("Hour of Day", 0, 23, 12)
 
-collision_type = st.selectbox("Collision Type", 
-                              ['head_on', 'parking_related', 'sideswipe', 'single_vehicle', 'turning'])
+# DAY OF WEEK
+day_map = {
+    "Monday": 0,
+    "Tuesday": 1,
+    "Wednesday": 2,
+    "Thursday": 3,
+    "Friday": 4,
+    "Saturday": 5,
+    "Sunday": 6
+}
 
-day_of_week = st.slider("Day of Week (0=Monday, 6=Sunday)", 0,6,3)
+day_label = st.selectbox("Day of Week", list(day_map.keys()))
+day_of_week = day_map[day_label]
 
-explainer = shap.TreeExplainer(clf)
+# COLLISION TYPE
+collision_type = st.selectbox(
+    "Collision Type",
+    [
+        "Head-on",
+        "Rear-end",
+        "Sideswipe",
+        "Single vehicle",
+        "Turning",
+        "Parking",
+        "Other"
+    ]
+)
 
-if st.button('Predict'):
+# PREDICT
+if st.button("Predict"):
 
     input_data = {
-        'crash_speed_limit': crash_speed_limit,
-        'num_units': num_units,
-        'hour': hour,
-        'collision_type': collision_type,
-        'day_of_week': day_of_week
+        "crash_speed_limit": crash_speed_limit,
+        "num_units": num_units,
+        "hour": hour,
+        "day_of_week": day_of_week,
+        "collision_type": collision_type
     }
 
-    df =process_input(input_data)
+    df = process_input(input_data)
+
+    # Debug check 
+    # st.write(df)
 
     severity_pred = clf.predict(df)[0]
     injury_pred = reg.predict(df)[0]
@@ -51,19 +81,56 @@ if st.button('Predict'):
     st.subheader("Explanation")
     st.write(explanation)
 
-    shap_vals = explainer.shap_values(df)
+    st.subheader("Feature Impact on Severity (SHAP)")
+    
 
-    st.subheader("Feature Importance (SHAP)")
+    shap_vals = clf_explainer.shap_values(df)
+    st.write("SHAP Shape:", getattr(shap_vals, 'shape', 'list'))
 
-    fig, ax = plt.subplot()
+    if isinstance(shap_vals, list):
+        # old shap frmt
+        pred_class = int(severity_pred)
+        pred_class = min(pred_class, len(shap_vals) - 1)
+
+        shap_val = shap_vals[pred_class][0]
+        base_val = clf_explainer.expected_value[pred_class]
+    else:
+        # new shap frmt
+        pred_class = int(severity_pred)
+        shap_val = shap_vals[0, :, pred_class]
+        base_val = clf_explainer.expected_value[pred_class]
+
+    fig1, ax1 = plt.subplots()
     shap.plots.waterfall(
         shap.Explanation(
-            values=shap_vals[1][0],
-            base_vals=explainer.expected_value[1],
+            values=shap_val,
+            base_values=base_val,
             data=df.iloc[0],
-            feature_names=df.columns
+            feature_names=df.columns.tolist()
         ),
         show=False
     )
 
-    st.pyplot(fig)
+    st.pyplot(fig1)
+
+    st.subheader("Feature Impact on Injury Prediction (SHAP)")
+    st.write("SHAP Shape:", getattr(shap_vals, 'shape', 'list'))
+
+
+    shap_vals = reg_explainer.shap_values(df)
+
+    shap_val = shap_vals[0]   # first sample
+    base_val = reg_explainer.expected_value
+
+    fig2, ax2 = plt.subplots()
+    shap.plots.waterfall(
+        shap.Explanation(
+            values=shap_val,
+            base_values=base_val,
+            data=df.iloc[0],
+            feature_names=df.columns.tolist()
+        ),
+        show=False
+    )
+
+    st.pyplot(fig2)

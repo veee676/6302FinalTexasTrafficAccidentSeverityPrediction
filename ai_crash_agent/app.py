@@ -5,8 +5,8 @@ from rag.rag_pipeline import generate_explanation
 
 app = FastAPI()
 
-clf_model = joblib.load('models/clf_model.pkl')
-reg_model = joblib.load('models/regression_model.pkl')
+clf_model = joblib.load('models/clf_agent.pkl')
+reg_model = joblib.load('models/reg_agent.pkl')
 
 @app.post("/predict")
 def predict(data: dict):
